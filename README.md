@@ -1,7 +1,8 @@
 ## Overview
 - Added functionalities for transfer amount,deposit amount,withdraw amount.
 ## Unit Test
-- Junit test case are added in AccountsServiceTest.Test name is transferAmount()
+- Junit test case are added in AccountsServiceTest.Test name is transferAmount().
+- Junit test case transferAmount() also added in AccountsControllerTest. 
 
 ## Class Details
 - In package  com.db.awmd.challenge.domain, base class Transaction is added. DepositTransaction,TransferTransaction,WithdrawTransaction classess extends Transaction class.
@@ -12,3 +13,4 @@
 - In  AccountsRepositoryInMemory class, new methods along with above methods are added- beginTransaction(..),beginFundTransferTransaction(..),beginDepositTransaction(..),beginWithdrawTransaction(..),IsAmountWithdrawnableFromAccout(..),depositAmount(..),withdrawAmount(..).
 - Methods used for notification are depositAmount(..),withdrawAmount(..) of class AccountsRepositoryInMemory
 - Added deposit() and withdraw() methods to class Account.
+- Added TransferAmount() in AccountsController class.

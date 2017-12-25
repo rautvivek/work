@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
 import com.db.awmd.challenge.domain.Account;
+import com.db.awmd.challenge.domain.TransferTransaction;
 import com.db.awmd.challenge.exception.DuplicateAccountIdException;
 import com.db.awmd.challenge.exception.InsufficientBalanceException;
 import com.db.awmd.challenge.service.AccountsService;
@@ -48,7 +49,7 @@ public class AccountsServiceTest {
 				public void run() {
 					for (int j = 1; j < 4; j++) {
 						try {
-							accountsService.transferMoney("Id-124", "Id-123", 500 * j);
+							accountsService.transferMoney(new TransferTransaction("Id-124", "Id-123", new BigDecimal(500 * j)));
 						} catch (InsufficientBalanceException e) {
 							// TODO Auto-generated catch block
 							assertThat(e).isInstanceOf(InsufficientBalanceException.class);

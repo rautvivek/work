@@ -1,8 +1,11 @@
 package com.db.awmd.challenge.web;
 
 import com.db.awmd.challenge.domain.Account;
+import com.db.awmd.challenge.domain.TransferTransaction;
 import com.db.awmd.challenge.exception.DuplicateAccountIdException;
+import com.db.awmd.challenge.exception.InsufficientBalanceException;
 import com.db.awmd.challenge.service.AccountsService;
+
 import javax.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,6 +46,18 @@ public class AccountsController {
     }
 
     return new ResponseEntity<>(HttpStatus.CREATED);
+  }
+  @RequestMapping("/transfer")
+  @PostMapping(consumes=MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<Object> TransferAmount(@RequestBody @Valid TransferTransaction amountTransfer){
+    log.info("transfer account data {}", amountTransfer);
+    try {
+		this.accountsService.transferMoney(amountTransfer);
+	} catch (InsufficientBalanceException | InterruptedException e) {
+		// TODO Auto-generated catch block
+		 return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+	}
+    return new ResponseEntity<>(HttpStatus.OK);
   }
 
   @GetMapping(path = "/{accountId}")

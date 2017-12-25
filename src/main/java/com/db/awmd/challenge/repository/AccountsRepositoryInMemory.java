@@ -47,12 +47,11 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 
 	@Override
 	/* method is support money transfer */
-	public void transferMoney(String fromAccountId, String toAccountId, Double amount)
+	public void transferMoney(TransferTransaction transferAmount)
 			throws InsufficientBalanceException, InterruptedException {
 		// TODO Auto-generated method stub
-		Transaction transferTransaction = new TransferTransaction(fromAccountId, toAccountId,
-				BigDecimal.valueOf(amount), TransactionType.TRANSFER);
-		transferQ.put(transferTransaction);
+		transferAmount.setTransactionType(TransactionType.TRANSFER);
+		transferQ.put(transferAmount);
 		beginTransaction();
 
 	}
@@ -145,7 +144,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 	public boolean IsAmountWithdrawnableFromAccout(String accountId, BigDecimal amount) {
 		Account account = getAccount(accountId);
 		BigDecimal balance = account.getBalance().subtract(amount);
-		if (balance.intValue() > 0) {
+		if (balance.intValue() >=0) {
 			return true;
 		}
 		return false;

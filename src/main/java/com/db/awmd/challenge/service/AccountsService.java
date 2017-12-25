@@ -1,6 +1,7 @@
 package com.db.awmd.challenge.service;
 
 import com.db.awmd.challenge.domain.Account;
+import com.db.awmd.challenge.domain.TransferTransaction;
 import com.db.awmd.challenge.exception.InsufficientBalanceException;
 import com.db.awmd.challenge.repository.AccountsRepository;
 import lombok.Getter;
@@ -30,9 +31,9 @@ public class AccountsService {
 		return accountsRepository;
 	}
 
-	public void transferMoney(String fromAccountId, String toAccountId, double amount)
+	public void transferMoney(TransferTransaction transferAmount)
 			throws InsufficientBalanceException, InterruptedException {
-		accountsRepository.transferMoney(fromAccountId, toAccountId, amount);
+		accountsRepository.transferMoney(transferAmount);
 	}
 
 	public void depositAmount(String accountId, double amount) throws InterruptedException {

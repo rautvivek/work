@@ -2,9 +2,12 @@ package com.db.awmd.challenge.domain;
 
 import java.math.BigDecimal;
 
+import javax.validation.constraints.NotNull;
+
 public class Transaction {
 
 	protected TransactionType transactionType;
+	@NotNull
 	protected BigDecimal amount;
 
 	public Transaction() {

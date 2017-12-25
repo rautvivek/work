@@ -53,6 +53,17 @@ public class AccountsControllerTest {
     assertThat(account.getAccountId()).isEqualTo("Id-123");
     assertThat(account.getBalance()).isEqualByComparingTo("1000");
   }
+  
+  @Test
+  public void transferAmount() throws Exception {
+	  this.mockMvc.perform(post("/v1/accounts").contentType(MediaType.APPLICATION_JSON)
+		      .content("{\"accountId\":\"Id-123\",\"balance\":1000}")).andExpect(status().isCreated());
+		    this.mockMvc.perform(post("/v1/accounts").contentType(MediaType.APPLICATION_JSON)
+		    	      .content("{\"accountId\":\"Id-124\",\"balance\":1001}")).andExpect(status().isCreated());
+
+    this.mockMvc.perform(post("/v1/accounts/transfer").contentType(MediaType.APPLICATION_JSON)
+      .content("{\"fromAccountId\":\"Id-124\",\"toAccountId\":\"Id-123\",\"amount\":1001}")).andExpect(status().isOk());
+  }
 
   @Test
   public void createDuplicateAccount() throws Exception {
