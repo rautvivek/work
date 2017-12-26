@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
@@ -101,26 +102,53 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 	private void beginFundTransferTransaction(TransferTransaction transaction) throws InsufficientBalanceException {
 		Account fromAccount = getAccount(transaction.getFromAccountId());
 		if (fromAccount != null) {
-			synchronized (fromAccount) {
-				if (IsAmountWithdrawnableFromAccout(fromAccount.getAccountId(), transaction.getAmount())) {
-					withdrawAmount(fromAccount, transaction.getAmount());
-					Account toAccount = getAccount(transaction.getToAccountId());
-					depositAmount(toAccount, transaction.getAmount());
+			
+			try {
+				if (fromAccount.getLock().tryLock(5, TimeUnit.SECONDS)) {
+					try {
+						if (IsAmountWithdrawnableFromAccout(fromAccount.getAccountId(), transaction.getAmount())) {
+							withdrawAmount(fromAccount, transaction.getAmount());
+							Account toAccount = getAccount(transaction.getToAccountId());
+							if (toAccount.getLock().tryLock(5, TimeUnit.SECONDS)) {
+								try {
+									depositAmount(toAccount, transaction.getAmount());
+								} finally {
+									toAccount.getLock().unlock();
+								}
+							}
 
-				} else {
-					throw new InsufficientBalanceException("Insufficient balance, can not withraw required amount");
+						} else {
+							throw new InsufficientBalanceException(
+									"Insufficient balance, can not withraw required amount");
+						}
+					} finally {
+						fromAccount.getLock().unlock();
+					}
 				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-		}
 
+		}
+		
 	}
 
 	/* method is used to initiate deposit transaction */
 	private void beginDepositTransaction(DepositTransaction transaction) {
 		Account account = getAccount(transaction.getAccountId());
 		if (account != null) {
-			synchronized (account) {
-				depositAmount(account, transaction.getAmount());
+			try {
+				if (account.getLock().tryLock(5, TimeUnit.SECONDS)) {
+					try {
+					depositAmount(account, transaction.getAmount());
+					} finally {
+						account.getLock().unlock();
+					}
+				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 	}
@@ -129,13 +157,22 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 	private void beginWithdrawTransaction(WithdrawTransaction transaction) {
 		Account account = getAccount(transaction.getAccountId());
 		if (account != null) {
-			synchronized (account) {
-				if (IsAmountWithdrawnableFromAccout(account.getAccountId(), transaction.getAmount())) {
-					withdrawAmount(account, transaction.getAmount());
-				} else {
-					throw new InsufficientBalanceException("Insufficient balance, can not withraw required amount");
-				}
+			try {
+				if (account.getLock().tryLock(5, TimeUnit.SECONDS)) {
+					try {
+					if (IsAmountWithdrawnableFromAccout(account.getAccountId(), transaction.getAmount())) {
+						withdrawAmount(account, transaction.getAmount());
+					} else {
+						throw new InsufficientBalanceException("Insufficient balance, can not withraw required amount");
+					}
+					} finally {
+						account.getLock().unlock();
+					}
 
+				}
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
 		}
 	}

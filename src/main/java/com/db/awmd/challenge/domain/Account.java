@@ -3,6 +3,8 @@ package com.db.awmd.challenge.domain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
+import java.util.concurrent.locks.ReentrantLock;
+
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import lombok.Data;
@@ -25,6 +27,8 @@ public class Account {
     this.balance = BigDecimal.ZERO;
   }
 
+  private ReentrantLock lock= new ReentrantLock();
+  
   @JsonCreator
   public Account(@JsonProperty("accountId") String accountId,
     @JsonProperty("balance") BigDecimal balance) {
@@ -49,4 +53,9 @@ public void deposit(BigDecimal amount) {
 public void withdraw(BigDecimal amount) {
 	this.balance = this.balance.subtract(amount);
 }
+
+public ReentrantLock getLock() {
+	return lock;
+}
+
 }
