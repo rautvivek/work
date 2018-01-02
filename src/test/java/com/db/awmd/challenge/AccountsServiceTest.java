@@ -43,13 +43,15 @@ public class AccountsServiceTest {
 	@Test
 	public void transferAmount() throws InsufficientBalanceException, InterruptedException {
 		ExecutorService executor = Executors.newFixedThreadPool(5);
-		for (int i = 0; i < 3; i++) {
-			executor.submit(new Runnable() {
+		
+		for ( int j = 0;j <10; j++) {
+			executor.submit(new Thread(j+"") {
 				@Override
 				public void run() {
-					for (int j = 1; j < 4; j++) {
+					//for (int j = 1; j < 4; j++) {
 						try {
-							accountsService.transferMoney(new TransferTransaction("Id-124", "Id-123", new BigDecimal(500 * j)));
+							int i=Integer.parseInt(getName());
+							accountsService.transferMoney(new TransferTransaction( i%2 ==0?"Id-124":"Id-123", i%2 ==0?"Id-123":"Id-124", new BigDecimal(5)));
 						} catch (InsufficientBalanceException e) {
 							// TODO Auto-generated catch block
 							assertThat(e).isInstanceOf(InsufficientBalanceException.class);
@@ -59,7 +61,7 @@ public class AccountsServiceTest {
 						}
 
 					}
-				}
+				//}
 			});
 		}
 		executor.awaitTermination(5, TimeUnit.SECONDS);

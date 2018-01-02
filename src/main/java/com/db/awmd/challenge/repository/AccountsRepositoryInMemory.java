@@ -1,24 +1,23 @@
 package com.db.awmd.challenge.repository;
 
-import com.db.awmd.challenge.domain.Account;
-import com.db.awmd.challenge.domain.DepositTransaction;
-import com.db.awmd.challenge.domain.Transaction;
-import com.db.awmd.challenge.domain.TransactionType;
-import com.db.awmd.challenge.domain.TransferTransaction;
-import com.db.awmd.challenge.domain.WithdrawTransaction;
-import com.db.awmd.challenge.exception.DuplicateAccountIdException;
-import com.db.awmd.challenge.exception.InsufficientBalanceException;
-import com.db.awmd.challenge.service.EmailNotificationService;
-
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
+import com.db.awmd.challenge.domain.Account;
+import com.db.awmd.challenge.domain.DepositTransaction;
+import com.db.awmd.challenge.domain.Transaction;
+import com.db.awmd.challenge.domain.TransactionType;
+import com.db.awmd.challenge.domain.TransferTransaction;
+import com.db.awmd.challenge.domain.WithdrawTransaction;
+import com.db.awmd.challenge.exception.AccountLockException;
+import com.db.awmd.challenge.exception.DuplicateAccountIdException;
+import com.db.awmd.challenge.exception.InsufficientBalanceException;
+import com.db.awmd.challenge.service.EmailNotificationService;
 
 @Repository
 public class AccountsRepositoryInMemory implements AccountsRepository {
@@ -49,7 +48,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 	@Override
 	/* method is support money transfer */
 	public void transferMoney(TransferTransaction transferAmount)
-			throws InsufficientBalanceException, InterruptedException {
+			throws InterruptedException, InsufficientBalanceException, AccountLockException {
 		// TODO Auto-generated method stub
 		transferAmount.setTransactionType(TransactionType.TRANSFER);
 		transferQ.put(transferAmount);
@@ -59,7 +58,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 
 	@Override
 	/* method is support money deposit */
-	public void depositMoney(String accountId, Double money) throws InterruptedException {
+	public void depositMoney(String accountId, Double money) throws InterruptedException, InsufficientBalanceException {
 		// TODO Auto-generated method stub
 		Transaction depositTransaction = new DepositTransaction(accountId, BigDecimal.valueOf(money),
 				TransactionType.DEPOSIT);
@@ -71,7 +70,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 	@Override
 	/* method is support money withdrawal */
 	public void withdrawMoney(String accountId, Double money)
-			throws InsufficientBalanceException, InterruptedException {
+			throws InsufficientBalanceException, InterruptedException, AccountLockException {
 		// TODO Auto-generated method stub
 		Transaction withdrawTransaction = new WithdrawTransaction(accountId, BigDecimal.valueOf(money),
 				TransactionType.WITHDRAWN);
@@ -81,28 +80,24 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 	}
 
 	/* method is used to initiate transaction */
-	private void beginTransaction() {
-		try {
-			Transaction transaction = transferQ.take();
-			if (transaction.getTransactionType().equals(TransactionType.TRANSFER)) {
-				beginFundTransferTransaction((TransferTransaction) transaction);
-			} else if (transaction.getTransactionType().equals(TransactionType.DEPOSIT)) {
-				beginDepositTransaction((DepositTransaction) transaction);
-			} else if (transaction.getTransactionType().equals(TransactionType.WITHDRAWN)) {
-				beginWithdrawTransaction((WithdrawTransaction) transaction);
-			}
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+	private void beginTransaction() throws InterruptedException, InsufficientBalanceException, AccountLockException {
+		Transaction transaction = transferQ.take();
+		if (transaction.getTransactionType().equals(TransactionType.TRANSFER)) {
+			beginFundTransferTransaction((TransferTransaction) transaction);
+		} else if (transaction.getTransactionType().equals(TransactionType.DEPOSIT)) {
+			beginDepositTransaction((DepositTransaction) transaction);
+		} else if (transaction.getTransactionType().equals(TransactionType.WITHDRAWN)) {
+			beginWithdrawTransaction((WithdrawTransaction) transaction);
 		}
 
 	}
 
 	/* method is used to initiate fund transfer transaction */
-	private void beginFundTransferTransaction(TransferTransaction transaction) throws InsufficientBalanceException {
+	private void beginFundTransferTransaction(TransferTransaction transaction)
+			throws InsufficientBalanceException, AccountLockException {
 		Account fromAccount = getAccount(transaction.getFromAccountId());
 		if (fromAccount != null) {
-			
+
 			try {
 				if (fromAccount.getLock().tryLock(5, TimeUnit.SECONDS)) {
 					try {
@@ -115,15 +110,28 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 								} finally {
 									toAccount.getLock().unlock();
 								}
+							} else {
+								emailNotificationService.notifyAboutTransfer(toAccount,
+										"Failed to transfer amount. Account is locked. Please try again later");
+								throw new AccountLockException("Failed to transfer amount. Account:" + toAccount
+										+ " is locked. Please try again later");
+
 							}
 
 						} else {
+							emailNotificationService.notifyAboutTransfer(fromAccount,
+									"Insufficient balance, can not withraw required amount");
 							throw new InsufficientBalanceException(
 									"Insufficient balance, can not withraw required amount");
 						}
 					} finally {
 						fromAccount.getLock().unlock();
 					}
+				} else {
+					emailNotificationService.notifyAboutTransfer(fromAccount,
+							"Failed to transfer amount. Account is locked. Please try again later");
+					throw new AccountLockException(
+							"Failed to transfer amount. Account:" + fromAccount + " is locked. Please try again later");
 				}
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
@@ -131,7 +139,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 			}
 
 		}
-		
+
 	}
 
 	/* method is used to initiate deposit transaction */
@@ -141,7 +149,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 			try {
 				if (account.getLock().tryLock(5, TimeUnit.SECONDS)) {
 					try {
-					depositAmount(account, transaction.getAmount());
+						depositAmount(account, transaction.getAmount());
 					} finally {
 						account.getLock().unlock();
 					}
@@ -160,11 +168,12 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 			try {
 				if (account.getLock().tryLock(5, TimeUnit.SECONDS)) {
 					try {
-					if (IsAmountWithdrawnableFromAccout(account.getAccountId(), transaction.getAmount())) {
-						withdrawAmount(account, transaction.getAmount());
-					} else {
-						throw new InsufficientBalanceException("Insufficient balance, can not withraw required amount");
-					}
+						if (IsAmountWithdrawnableFromAccout(account.getAccountId(), transaction.getAmount())) {
+							withdrawAmount(account, transaction.getAmount());
+						} else {
+							throw new InsufficientBalanceException(
+									"Insufficient balance, can not withraw required amount");
+						}
 					} finally {
 						account.getLock().unlock();
 					}
@@ -181,7 +190,7 @@ public class AccountsRepositoryInMemory implements AccountsRepository {
 	public boolean IsAmountWithdrawnableFromAccout(String accountId, BigDecimal amount) {
 		Account account = getAccount(accountId);
 		BigDecimal balance = account.getBalance().subtract(amount);
-		if (balance.intValue() >=0) {
+		if (balance.intValue() >= 0) {
 			return true;
 		}
 		return false;

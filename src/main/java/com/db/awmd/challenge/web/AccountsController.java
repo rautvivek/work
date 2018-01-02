@@ -2,6 +2,7 @@ package com.db.awmd.challenge.web;
 
 import com.db.awmd.challenge.domain.Account;
 import com.db.awmd.challenge.domain.TransferTransaction;
+import com.db.awmd.challenge.exception.AccountLockException;
 import com.db.awmd.challenge.exception.DuplicateAccountIdException;
 import com.db.awmd.challenge.exception.InsufficientBalanceException;
 import com.db.awmd.challenge.service.AccountsService;
@@ -53,7 +54,7 @@ public class AccountsController {
     log.info("transfer account data {}", amountTransfer);
     try {
 		this.accountsService.transferMoney(amountTransfer);
-	} catch (InsufficientBalanceException | InterruptedException e) {
+	} catch (InsufficientBalanceException | InterruptedException  | AccountLockException e) {
 		// TODO Auto-generated catch block
 		 return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
 	}

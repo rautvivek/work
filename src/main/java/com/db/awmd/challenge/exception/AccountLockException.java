@@ -1,11 +1,12 @@
 package com.db.awmd.challenge.exception;
 
-public class InsufficientBalanceException extends RuntimeException {
+public class AccountLockException extends RuntimeException {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	public InsufficientBalanceException(String message) {
+	public AccountLockException(String message) {
 		super(message);
 	}
+
 }
